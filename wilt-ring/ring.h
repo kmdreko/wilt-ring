@@ -198,8 +198,6 @@ namespace wilt
 
   }; // class Ring_
 
-inline namespace common
-{
   template <class T>
   class Ring : protected Ring_
   {
@@ -367,7 +365,6 @@ inline namespace common
     return true;
   }
 
-} // namespace common
 } // namespace wilt
 
 #endif // !WILT_RING_H
