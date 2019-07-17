@@ -35,6 +35,11 @@
 // - std::ptrdiff_t
 #include <new>
 // - ::new(ptr)
+#include <type_traits>
+// - std::is_nothrow_copy_constructible
+// - std::is_nothrow_move_constructible
+// - std::is_nothrow_move_assignable
+// - std::is_nothrow_destructible
 
 namespace wilt
 {
@@ -300,41 +305,61 @@ namespace wilt
   template <class T>
   void Ring<T>::read(T& data) noexcept
   {
-    T* block = (T*)acquire_read_block_(sizeof(T));
+    static_assert(std::is_nothrow_move_assignable<T>::value, "T move assignment must not throw");
+    static_assert(std::is_nothrow_destructible<T>::value, "T destructor must not throw");
 
-    data = std::move(*block);
-    block->~T();
-    release_read_block_((char*)block, sizeof(T));
+    auto block = acquire_read_block_(sizeof(T));
+
+    // critical section
+    auto t = reinterpret_cast<T*>(block);
+    data = std::move(*t);
+    t->~T();
+
+    release_read_block_(block, sizeof(T));
   }
 
   template <class T>
   void Ring<T>::write(const T& data) noexcept
   {
-    char* block = acquire_write_block_(sizeof(T));
+    static_assert(std::is_nothrow_copy_constructible<T>::value, "T copy constructor must not throw");
 
+    auto block = acquire_write_block_(sizeof(T));
+
+    // critical section
     new(block) T(data);
+
     release_write_block_(block, sizeof(T));
   }
 
   template <class T>
   void Ring<T>::write(T&& data) noexcept
   {
-    char* block = acquire_write_block_(sizeof(T));
+    static_assert(std::is_nothrow_move_constructible<T>::value, "T move constructor must not throw");
 
+    auto block = acquire_write_block_(sizeof(T));
+
+    // critical section
     new(block) T(std::move(data));
+
     release_write_block_(block, sizeof(T));
   }
 
   template <class T>
   bool Ring<T>::try_read(T& data) noexcept
   {
-    T* block = (T*)try_acquire_read_block_(sizeof(T));
+    static_assert(std::is_nothrow_move_assignable<T>::value, "T move assignment must not throw");
+    static_assert(std::is_nothrow_destructible<T>::value, "T destructor must not throw");
+
+    auto block = try_acquire_read_block_(sizeof(T));
     if (block == nullptr)
       return false;
 
-    data = std::move(*block);
-    block->~T();
-    release_read_block_((char*)block, sizeof(T));
+    // critical section
+    auto t = reinterpret_cast<T*>(block);
+    data = std::move(*t);
+    t->~T();
+
+    release_read_block_(block, sizeof(T));
 
     return true;
   }
@@ -342,11 +367,15 @@ namespace wilt
   template <class T>
   bool Ring<T>::try_write(const T& data) noexcept
   {
-    char* block = try_acquire_write_block_(sizeof(T));
+    static_assert(std::is_nothrow_copy_constructible<T>::value, "T copy constructor must not throw");
+
+    auto block = try_acquire_write_block_(sizeof(T));
     if (block == nullptr)
       return false;
 
+    // critical section
     new(block) T(data);
+
     release_write_block_(block, sizeof(T));
 
     return true;
@@ -355,11 +384,15 @@ namespace wilt
   template <class T>
   bool Ring<T>::try_write(T&& data) noexcept
   {
-    char* block = try_acquire_write_block_(sizeof(T));
+    static_assert(std::is_nothrow_move_constructible<T>::value, "T move constructor must not throw");
+
+    auto block = try_acquire_write_block_(sizeof(T));
     if (block == nullptr)
       return false;
 
+    // critical section
     new(block) T(std::move(data));
+
     release_write_block_(block, sizeof(T));
 
     return true;
