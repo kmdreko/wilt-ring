@@ -135,9 +135,7 @@ namespace wilt
     // either ring. Deallocates the buffer
     Ring_& operator= (Ring_&& ring);
 
-    // No copying. In the current model, there is no safe way to read without
-    // committing (would have to be a destructive read). Either that, or I'd
-    // have to dictate that reads and writes are not allowed during copying
+    // No copying
     Ring_(const Ring_&)             = delete;
     Ring_& operator= (const Ring_&) = delete;
 
@@ -224,9 +222,7 @@ namespace wilt
     // either ring. Deallocates the buffer
     Ring<T>& operator= (Ring<T>&& ring);
 
-    // No copying. In the current model, there is no safe way to read without
-    // committing (would have to be a destructive read). Either that, or I'd
-    // have to dictate that reads and writes are not allowed during copying
+    // No copying
     Ring(const Ring_&)             = delete;
     Ring& operator= (const Ring_&) = delete;
 
@@ -310,12 +306,14 @@ namespace wilt
     if (size() == 0)
       return;
 
-    T* itr = (T*)begin_data_();
-    T* end = (T*)end_data_();
+    auto itr = begin_data_();
+    auto end = end_data_();
     do
     {
-      itr->~T();
-      itr = (T*)normalize_((char*)++itr);
+      auto t = reinterpret_cast<T*>(itr);
+      t->~T();
+
+      itr = normalize_(itr + sizeof(T));
     } while (itr != end);
   }
 

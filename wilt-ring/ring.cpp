@@ -167,35 +167,35 @@ char* Ring_::normalize_(char* ptr)
 
 char* Ring_::acquire_read_block_(std::size_t length)
 {
-  while (true)                                              // loop till success
+  while (true)                                                  // loop while conflict
   {
-    char* old_rptr = rptr_.load();                          // read rptr
-    while (used_.load() < (std::ptrdiff_t)length)           // not enough data
-      ;                                                     // spin until success
+    auto old_rptr = rptr_.load();                               // read rptr
+    while (used_.load() < static_cast<std::ptrdiff_t>(length))  // check for data
+      ;                                                         // spin until success
 
-    char* new_rptr = normalize_(old_rptr + length);         // get block end
-    used_.fetch_sub(length);                                // reserve
-    if (!rptr_.compare_exchange_strong(old_rptr, new_rptr)) // try commit
-      used_.fetch_add(length);                              // un-reserve
-    else                                                    // committed
-      return old_rptr;                                      // return start
+    auto new_rptr = normalize_(old_rptr + length);              // get block end
+    used_.fetch_sub(length);                                    // reserve
+    if (rptr_.compare_exchange_strong(old_rptr, new_rptr))      // try commit
+      return old_rptr;                                          // committed
+
+    used_.fetch_add(length);                                    // un-reserve
   }
 }
 
 char* Ring_::try_acquire_read_block_(std::size_t length)
 {
-  while (true)                                              // loop till success
+  while (true)                                                  // loop while conflict
   {
-    char* old_rptr = rptr_.load();                          // read rptr
-    if (used_.load() < (std::ptrdiff_t)length)              // not enough data
-      return nullptr;                                       // return failure
+    auto old_rptr = rptr_.load();                               // read rptr
+    if (used_.load() < static_cast<std::ptrdiff_t>(length))     // check for data
+      return nullptr;                                           // return failure
 
-    char* new_rptr = normalize_(old_rptr + length);         // get block end
-    used_.fetch_sub(length);                                // reserve
-    if (!rptr_.compare_exchange_strong(old_rptr, new_rptr)) // try commit
-      used_.fetch_add(length);                              // un-reserve
-    else                                                    // committed
-      return old_rptr;                                      // return start
+    auto new_rptr = normalize_(old_rptr + length);              // get block end
+    used_.fetch_sub(length);                                    // reserve
+    if (rptr_.compare_exchange_strong(old_rptr, new_rptr))      // try commit
+      return old_rptr;                                          // committed
+
+    used_.fetch_add(length);                                    // un-reserve
   }
 }
 
@@ -215,45 +215,45 @@ void Ring_::copy_read_block_(const char* block, char* data, std::size_t length)
 
 void Ring_::release_read_block_(char* old_rptr, std::size_t length)
 {
-  char* new_rptr = normalize_(old_rptr + length);           // get block end
-  while (rbuf_.load() != old_rptr)                          // check for earlier reads
-    ;                                                       // spin until reads complete
+  auto new_rptr = normalize_(old_rptr + length);                // get block end
+  while (rbuf_.load() != old_rptr)                              // check for earlier reads
+    ;                                                           // spin until reads complete
 
-  rbuf_.store(new_rptr);                                    // finish commit
-  free_.fetch_add(length);                                  // add to free space
+  rbuf_.store(new_rptr);                                        // finish commit
+  free_.fetch_add(length);                                      // add to free space
 }
 
 char* Ring_::acquire_write_block_(std::size_t length)
 {
-  while (true)                                              // loop till success
+  while (true)                                                  // loop while conflict
   {
-    char* old_wbuf = wbuf_.load();                          // read wbuf
-    while (free_.load() < (std::ptrdiff_t)length)           // not enough space
-      ;                                                     // spin until success
+    auto old_wbuf = wbuf_.load();                               // read wbuf
+    while (free_.load() < static_cast<std::ptrdiff_t>(length))  // check for space
+      ;                                                         // spin until success
 
-    char* new_wbuf = normalize_(old_wbuf + length);         // get block end
-    free_.fetch_sub(length);                                // reserve
-    if (!wbuf_.compare_exchange_strong(old_wbuf, new_wbuf)) // try commit
-      free_.fetch_add(length);                              // un-reserve
-    else                                                    // committed
-      return old_wbuf;                                      // start writing
+    auto new_wbuf = normalize_(old_wbuf + length);              // get block end
+    free_.fetch_sub(length);                                    // reserve
+    if (wbuf_.compare_exchange_strong(old_wbuf, new_wbuf))      // try commit
+      return old_wbuf;                                          // committed
+
+    free_.fetch_add(length);                                    // un-reserve
   }
 }
 
 char* Ring_::try_acquire_write_block_(std::size_t length)
 {
-  while (true)                                              // loop till success
+  while (true)                                                  // loop while conflict
   {
-    char* old_wbuf = wbuf_.load();                          // read wbuf
-    if (free_.load() < (std::ptrdiff_t)length)              // not enough space
-      return nullptr;                                       // return failure
+    auto old_wbuf = wbuf_.load();                               // read wbuf
+    if (free_.load() < static_cast<std::ptrdiff_t>(length))     // check for space
+      return nullptr;                                           // return failure
 
-    char* new_wbuf = normalize_(old_wbuf + length);         // get block end
-    free_.fetch_sub(length);                                // reserve
-    if (!wbuf_.compare_exchange_strong(old_wbuf, new_wbuf)) // try commit
-      free_.fetch_add(length);                              // un-reserve
-    else                                                    // committed
-      return old_wbuf;                                      // start writing
+    auto new_wbuf = normalize_(old_wbuf + length);              // get block end
+    free_.fetch_sub(length);                                    // reserve
+    if (wbuf_.compare_exchange_strong(old_wbuf, new_wbuf))      // try commit
+      return old_wbuf;                                          // committed
+
+    free_.fetch_add(length);                                    // un-reserve
   }
 }
 
@@ -273,10 +273,10 @@ void Ring_::copy_write_block_(char* block, const char* data, std::size_t length)
 
 void Ring_::release_write_block_(char* old_wbuf, std::size_t length)
 {
-  char* new_wbuf = normalize_(old_wbuf + length);           // get block end
-  while (wptr_.load() != old_wbuf)                          // wait for earlier writes
-    ;                                                       // spin until writes complete
+  auto new_wbuf = normalize_(old_wbuf + length);                // get block end
+  while (wptr_.load() != old_wbuf)                              // wait for earlier writes
+    ;                                                           // spin until writes complete
 
-  wptr_.store(new_wbuf);                                    // finish commit
-  used_.fetch_add(length);                                  // add to used space
+  wptr_.store(new_wbuf);                                        // finish commit
+  used_.fetch_add(length);                                      // add to used space
 }
