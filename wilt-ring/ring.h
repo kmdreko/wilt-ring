@@ -117,14 +117,18 @@ namespace wilt
     // CONSTRUCTORS AND DESTRUCTORS
     ////////////////////////////////////////////////////////////////////////////
 
-    // Ring must be constructed with a size that does not change
-    Ring_(std::size_t);
+    // Constructs a ring without a buffer (capacity() == 0)
+    Ring_();
 
-    // Moving assumes nothing is reading or writing (should be the case anyway).
-    Ring_(Ring_&&);
+    // Constructs a ring with a buffer with a size
+    Ring_(std::size_t size);
 
-    // No default constructor, must be initialized with a size
-    Ring_()                        = delete;
+    // Moves the buffer between rings, assumes no concurrent operations
+    Ring_(Ring_&& ring);
+
+    // Moves the buffer between rings, assumes no concurrent operations on
+    // either ring. Deallocates the buffer
+    Ring_& operator= (Ring_&& ring);
 
     // No copying. In the current model, there is no safe way to read without
     // committing (would have to be a destructive read). Either that, or I'd
@@ -132,10 +136,7 @@ namespace wilt
     Ring_(const Ring_&)             = delete;
     Ring_& operator= (const Ring_&) = delete;
 
-    // No move assignment. I'm lazy
-    Ring_& operator= (Ring_&&)      = delete;
-
-    // Deallocates the buffer, doesn't do anything with stored data.
+    // Deallocates the buffer
     ~Ring_();
 
   public:

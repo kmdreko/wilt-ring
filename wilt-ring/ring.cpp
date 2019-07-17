@@ -32,40 +32,85 @@ using namespace wilt;
 #include <cstring>
 // - std::memcpy
 
+Ring_::Ring_()
+  : beg_(nullptr)
+  , end_(nullptr)
+{
+  std::atomic_init(&used_, 0);
+  std::atomic_init(&free_, 0);
+  std::atomic_init(&rbuf_, nullptr);
+  std::atomic_init(&rptr_, nullptr);
+  std::atomic_init(&wptr_, nullptr);
+  std::atomic_init(&wbuf_, nullptr);
+}
+
 Ring_::Ring_(std::size_t size)
   : beg_(new char[size])
   , end_(beg_ + size)
 {
-  used_.store(0);
-  free_.store(size);
-
-  rbuf_.store(beg_);
-  rptr_.store(beg_);
-  wptr_.store(beg_);
-  wbuf_.store(beg_);
+  std::atomic_init(&used_, 0);
+  std::atomic_init(&free_, size);
+  std::atomic_init(&rbuf_, beg_);
+  std::atomic_init(&rptr_, beg_);
+  std::atomic_init(&wptr_, beg_);
+  std::atomic_init(&wbuf_, beg_);
 }
 
-Ring_::Ring_(Ring_&& r)
-  : beg_(r.beg_)
-  , end_(r.end_)
+Ring_::Ring_(Ring_&& ring)
+  : beg_(ring.beg_)
+  , end_(ring.end_)
 {
-  used_.store(r.used_.load());
-  free_.store(r.free_.load());
+  std::atomic_init(&used_, ring.used_.load());
+  std::atomic_init(&free_, ring.free_.load());
+  std::atomic_init(&rbuf_, ring.rbuf_.load());
+  std::atomic_init(&rptr_, ring.rptr_.load());
+  std::atomic_init(&wptr_, ring.wptr_.load());
+  std::atomic_init(&wbuf_, ring.wbuf_.load());
 
-  rbuf_.store(r.rbuf_.load());
-  rptr_.store(r.rptr_.load());
-  wptr_.store(r.wptr_.load());
-  wbuf_.store(r.wbuf_.load());
+  ring.beg_ = nullptr;
+  ring.end_ = nullptr;
 
-  r.beg_ = nullptr;
-  r.end_ = nullptr;
-  r.used_.store(0);
-  r.free_.store(0);
+  ring.used_.store(0);
+  ring.free_.store(0);
+  ring.rbuf_.store(nullptr);
+  ring.rptr_.store(nullptr);
+  ring.wptr_.store(nullptr);
+  ring.wbuf_.store(nullptr);
+}
+
+Ring_& Ring_::operator= (Ring_&& ring)
+{
+  if (this != &ring)
+  {
+    delete[] beg_;
+
+    beg_ = ring.beg_;
+    end_ = ring.end_;
+
+    used_.store(ring.used_.load());
+    free_.store(ring.free_.load());
+    rbuf_.store(ring.rbuf_.load());
+    rptr_.store(ring.rptr_.load());
+    wptr_.store(ring.wptr_.load());
+    wbuf_.store(ring.wbuf_.load());
+
+    ring.beg_ = nullptr;
+    ring.end_ = nullptr;
+
+    ring.used_.store(0);
+    ring.free_.store(0);
+    ring.rbuf_.store(nullptr);
+    ring.rptr_.store(nullptr);
+    ring.wptr_.store(nullptr);
+    ring.wbuf_.store(nullptr);
+  }
+
+  return *this;
 }
 
 Ring_::~Ring_()
 {
-  delete [] beg_;
+  delete[] beg_;
 }
 
 std::ptrdiff_t Ring_::size() const
