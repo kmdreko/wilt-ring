@@ -163,10 +163,10 @@ namespace wilt
     // until operation is completed. Non-blocking operations fail if there is
     // not enough space
 
-    void read(void* data, std::size_t length);            // blocking read
-    void write(const void* data, std::size_t length);     // blocking write
-    bool try_read(void* data, std::size_t length);        // non-blocking read
-    bool try_write(const void* data, std::size_t length); // non-blocking write
+    void read(void* data, std::size_t length) noexcept;
+    void write(const void* data, std::size_t length) noexcept;
+    bool try_read(void* data, std::size_t length) noexcept;
+    bool try_write(const void* data, std::size_t length) noexcept;
 
   protected:
     ////////////////////////////////////////////////////////////////////////////
@@ -251,12 +251,12 @@ namespace wilt
     // until operation is completed. Non-blocking operations fail if there is
     // not enough space
 
-    void read(T& data);            // blocking read
-    void write(const T& data);     // blocking write
-    void write(T&& data);          // blocking write
-    bool try_read(T& data);        // non-blocking read
-    bool try_write(const T& data); // non-blocking write
-    bool try_write(T&& data);      // non-blocking write
+    void read(T& data) noexcept;            // blocking read
+    void write(const T& data) noexcept;     // blocking write
+    void write(T&& data) noexcept;          // blocking write
+    bool try_read(T& data) noexcept;        // non-blocking read
+    bool try_write(const T& data) noexcept; // non-blocking write
+    bool try_write(T&& data) noexcept;      // non-blocking write
 
   }; // class Ring<T>
 
@@ -298,7 +298,7 @@ namespace wilt
   }
 
   template <class T>
-  void Ring<T>::read(T& data)
+  void Ring<T>::read(T& data) noexcept
   {
     T* block = (T*)acquire_read_block_(sizeof(T));
 
@@ -308,7 +308,7 @@ namespace wilt
   }
 
   template <class T>
-  void Ring<T>::write(const T& data)
+  void Ring<T>::write(const T& data) noexcept
   {
     char* block = acquire_write_block_(sizeof(T));
 
@@ -317,7 +317,7 @@ namespace wilt
   }
 
   template <class T>
-  void Ring<T>::write(T&& data)
+  void Ring<T>::write(T&& data) noexcept
   {
     char* block = acquire_write_block_(sizeof(T));
 
@@ -326,7 +326,7 @@ namespace wilt
   }
 
   template <class T>
-  bool Ring<T>::try_read(T& data)
+  bool Ring<T>::try_read(T& data) noexcept
   {
     T* block = (T*)try_acquire_read_block_(sizeof(T));
     if (block == nullptr)
@@ -340,7 +340,7 @@ namespace wilt
   }
 
   template <class T>
-  bool Ring<T>::try_write(const T& data)
+  bool Ring<T>::try_write(const T& data) noexcept
   {
     char* block = try_acquire_write_block_(sizeof(T));
     if (block == nullptr)
@@ -353,7 +353,7 @@ namespace wilt
   }
 
   template <class T>
-  bool Ring<T>::try_write(T&& data)
+  bool Ring<T>::try_write(T&& data) noexcept
   {
     char* block = try_acquire_write_block_(sizeof(T));
     if (block == nullptr)

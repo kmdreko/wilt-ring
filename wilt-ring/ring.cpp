@@ -123,7 +123,7 @@ std::ptrdiff_t Ring_::capacity() const
   return end_ - beg_;
 }
 
-void Ring_::read(void* data, std::size_t length)
+void Ring_::read(void* data, std::size_t length) noexcept
 {
   char* block = acquire_read_block_(length);
 
@@ -131,7 +131,7 @@ void Ring_::read(void* data, std::size_t length)
   release_read_block_(block, length);
 }
 
-void Ring_::write(const void* data, std::size_t length)
+void Ring_::write(const void* data, std::size_t length) noexcept
 {
   char* block = acquire_write_block_(length);
 
@@ -139,7 +139,7 @@ void Ring_::write(const void* data, std::size_t length)
   release_write_block_(block, length);
 }
 
-bool Ring_::try_read(void* data, std::size_t length)
+bool Ring_::try_read(void* data, std::size_t length) noexcept
 {
   char* block = try_acquire_read_block_(length);
   if (block == nullptr)
@@ -151,7 +151,7 @@ bool Ring_::try_read(void* data, std::size_t length)
   return true;
 }
 
-bool Ring_::try_write(const void* data, std::size_t length)
+bool Ring_::try_write(const void* data, std::size_t length) noexcept
 {
   char* block = try_acquire_write_block_(length);
   if (block == nullptr)
