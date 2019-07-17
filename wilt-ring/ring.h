@@ -51,7 +51,7 @@ namespace wilt
   // These buffer pointers cannot overlap. Just using these pointers suffer from
   // some minute inefficiencies and a few ABA problems. Therfore, atomic 
   // integers are used to store the currently used and currently free sizes. 
-
+  // 
   // It allows multiple readers and multiple writers by implementing a reserve-
   // commit system. A thread wanting to read will check the used size to see if
   // there's enough data. If there is, it subtracts from the used size to
@@ -66,21 +66,21 @@ namespace wilt
   // the free size increased. So while this implementation is lock-free, it is
   // not wait-free. This same principle works the same when writing (ammended 
   // for the appropriate pointers).
-
+  // 
   // If two readers try to read at the same time and there is only enough data
   // for one of them. The used size MAY be negative because they both 'reserve'
   // the data. This is an over-reserved state. But the compare-exchange will
   // only allow one reader to 'commit' to the read and the other will 'un-
   // reserve' the read. 
-
+  // 
   // |beg           |rptr      used=5             |wbuf         - unused
   // |----|----|++++|====|====|====|====|====|++++|----|        + modifying
   //  free=3   |rbuf                         |wptr     |end     = used
-
+  // 
   // The diagram above shows a buffer of size 10 storing 5 bytes with a reader
   // reading one byte and one writer reading one byte
-
-  // Out of the box, the class work by reading and writing raw bytes from POD
+  // 
+  // Out of the box, the class works by reading and writing raw bytes from POD
   // data types and arrays. A wrapper could allow for a nicer interface for
   // pushing and popping elements. As it stands, this structure cannot be easily
   // modified to store types of variable size.
@@ -104,14 +104,13 @@ namespace wilt
     // change. used_ and free_ can be negative in certain cases (and that's ok).
 
     data_ptr  beg_;  // pointer to beginning of data block
+    data_ptr  end_;  // pointer to end of data block
     size_type used_; // size of unreserved used space
+    size_type free_; // size of unreserved free space
+    atom_ptr  rbuf_; // pointer to beginning of data being read
     atom_ptr  rptr_; // pointer to beginning of data
     atom_ptr  wptr_; // pointer to end of data
-
-    data_ptr  end_;  // pointer to end of data block
-    size_type free_; // size of unreserved free space
-    atom_ptr  wbuf_; // pointer to data being written
-    atom_ptr  rbuf_; // pointer to data being read
+    atom_ptr  wbuf_; // pointer to end of data being written
 
   public:
     ////////////////////////////////////////////////////////////////////////////
@@ -177,15 +176,15 @@ namespace wilt
     // Wraps a pointer within the array. Assumes 'beg_ <= ptr < end_+capacity()'
     char* normalize_(char*);
 
-    char* read_get_(std::size_t);                         // get read block
-    char* read_try_(std::size_t);                         // try read block
-    void  read_raw_(const char*, char*, std::size_t);     // raw read
-    void  read_end_(char*, std::size_t);                  // end read
+    char* acquire_read_block_(std::size_t length);
+    char* try_acquire_read_block_(std::size_t length);
+    void  copy_read_block_(const char* block, char* data, std::size_t length);
+    void  release_read_block_(char* block, std::size_t length);
 
-    char* write_get_(std::size_t);                        // get write block
-    char* write_try_(std::size_t);                        // try write block
-    void  write_raw_(char*, const char*, std::size_t);    // raw write
-    void  write_end_(char*, std::size_t);                 // end write
+    char* acquire_write_block_(std::size_t length);
+    char* try_acquire_write_block_(std::size_t length);
+    void  copy_write_block_(char* block, const char* data, std::size_t length);
+    void  release_write_block_(char* block, std::size_t length);
 
     char* begin_alloc_()             { return beg_;  }
     const char* begin_alloc_() const { return beg_;  }
@@ -300,41 +299,41 @@ namespace wilt
   template <class T>
   void Ring<T>::read(T& data)
   {
-    T* block = (T*)read_get_(sizeof(T));
+    T* block = (T*)acquire_read_block_(sizeof(T));
 
     data = std::move(*block);
     block->~T();
-    read_end_((char*)block, sizeof(T));
+    release_read_block_((char*)block, sizeof(T));
   }
 
   template <class T>
   void Ring<T>::write(const T& data)
   {
-    char* block = write_get_(sizeof(T));
+    char* block = acquire_write_block_(sizeof(T));
 
     new(block) T(data);
-    write_end_(block, sizeof(T));
+    release_write_block_(block, sizeof(T));
   }
 
   template <class T>
   void Ring<T>::write(T&& data)
   {
-    char* block = write_get_(sizeof(T));
+    char* block = acquire_write_block_(sizeof(T));
 
     new(block) T(std::move(data));
-    write_end_(block, sizeof(T));
+    release_write_block_(block, sizeof(T));
   }
 
   template <class T>
   bool Ring<T>::try_read(T& data)
   {
-    T* block = (T*)read_try_(sizeof(T));
+    T* block = (T*)try_acquire_read_block_(sizeof(T));
     if (block == nullptr)
       return false;
 
     data = std::move(*block);
     block->~T();
-    read_end_((char*)block, sizeof(T));
+    release_read_block_((char*)block, sizeof(T));
 
     return true;
   }
@@ -342,12 +341,12 @@ namespace wilt
   template <class T>
   bool Ring<T>::try_write(const T& data)
   {
-    char* block = write_try_(sizeof(T));
+    char* block = try_acquire_write_block_(sizeof(T));
     if (block == nullptr)
       return false;
 
-    new(block) T(std::move(data));
-    write_end_(block, sizeof(T));
+    new(block) T(data);
+    release_write_block_(block, sizeof(T));
 
     return true;
   }
@@ -355,12 +354,12 @@ namespace wilt
   template <class T>
   bool Ring<T>::try_write(T&& data)
   {
-    char* block = write_try_(sizeof(T));
+    char* block = try_acquire_write_block_(sizeof(T));
     if (block == nullptr)
       return false;
 
     new(block) T(std::move(data));
-    write_end_(block, sizeof(T));
+    release_write_block_(block, sizeof(T));
 
     return true;
   }

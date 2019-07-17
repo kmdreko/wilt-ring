@@ -80,40 +80,40 @@ std::ptrdiff_t Ring_::capacity() const
 
 void Ring_::read(void* data, std::size_t length)
 {
-  char* block = read_get_(length);
+  char* block = acquire_read_block_(length);
 
-  read_raw_(block, (char*)data, length);
-  read_end_(block, length);
+  copy_read_block_(block, (char*)data, length);
+  release_read_block_(block, length);
 }
 
 void Ring_::write(const void* data, std::size_t length)
 {
-  char* block = write_get_(length);
+  char* block = acquire_write_block_(length);
 
-  write_raw_(block, (const char*)data, length);
-  write_end_(block, length);
+  copy_write_block_(block, (const char*)data, length);
+  release_write_block_(block, length);
 }
 
 bool Ring_::try_read(void* data, std::size_t length)
 {
-  char* block = read_try_(length);
+  char* block = try_acquire_read_block_(length);
   if (block == nullptr)
     return false;
 
-  read_raw_(block, (char*)data, length);
-  read_end_(block, length);
+  copy_read_block_(block, (char*)data, length);
+  release_read_block_(block, length);
 
   return true;
 }
 
 bool Ring_::try_write(const void* data, std::size_t length)
 {
-  char* block = write_try_(length);
+  char* block = try_acquire_write_block_(length);
   if (block == nullptr)
     return false;
 
-  write_raw_(block, (const char*)data, length);
-  write_end_(block, length);
+  copy_write_block_(block, (const char*)data, length);
+  release_write_block_(block, length);
 
   return true;
 }
@@ -123,7 +123,7 @@ char* Ring_::normalize_(char* ptr)
   return ptr < end_ ? ptr : ptr - capacity();
 }
 
-char* Ring_::read_get_(std::size_t length)
+char* Ring_::acquire_read_block_(std::size_t length)
 {
   while (true)                                              // loop till success
   {
@@ -139,7 +139,7 @@ char* Ring_::read_get_(std::size_t length)
   }
 }
 
-char* Ring_::read_try_(std::size_t length)
+char* Ring_::try_acquire_read_block_(std::size_t length)
 {
   while (true)                                              // loop till success
   {
@@ -156,21 +156,21 @@ char* Ring_::read_try_(std::size_t length)
   }
 }
 
-void Ring_::read_raw_(const char* internal, char* external, std::size_t length)
+void Ring_::copy_read_block_(const char* block, char* data, std::size_t length)
 {
-  if (internal + length < end_)
+  if (block + length < end_)
   {
-    std::memcpy(external, internal, length);
+    std::memcpy(data, block, length);
   }
   else
   {
-    auto first = end_ - internal;
-    std::memcpy(external, internal, first);
-    std::memcpy(external + first, beg_, length - first);
+    auto first = end_ - block;
+    std::memcpy(data, block, first);
+    std::memcpy(data + first, beg_, length - first);
   }
 }
 
-void Ring_::read_end_(char* old_rptr, std::size_t length)
+void Ring_::release_read_block_(char* old_rptr, std::size_t length)
 {
   char* new_rptr = normalize_(old_rptr + length);           // get block end
   while (rbuf_.load() != old_rptr);                         // wait for reads
@@ -178,7 +178,7 @@ void Ring_::read_end_(char* old_rptr, std::size_t length)
   free_.fetch_add(length);                                  // add to free space
 }
 
-char* Ring_::write_get_(std::size_t length)
+char* Ring_::acquire_write_block_(std::size_t length)
 {
   while (true)                                              // loop till success
   {
@@ -194,7 +194,7 @@ char* Ring_::write_get_(std::size_t length)
   }
 }
 
-char* Ring_::write_try_(std::size_t length)
+char* Ring_::try_acquire_write_block_(std::size_t length)
 {
   while (true)                                              // loop till success
   {
@@ -211,21 +211,21 @@ char* Ring_::write_try_(std::size_t length)
   }
 }
 
-void Ring_::write_raw_(char* internal, const char* external, std::size_t length)
+void Ring_::copy_write_block_(char* block, const char* data, std::size_t length)
 {
-  if (internal + length < end_)
+  if (block + length < end_)
   {
-    std::memcpy(internal, external, length);
+    std::memcpy(block, data, length);
   }
   else
   {
-    auto first = end_ - internal;
-    std::memcpy(internal, external, first);
-    std::memcpy(beg_, external + first, length - first);
+    auto first = end_ - block;
+    std::memcpy(block, data, first);
+    std::memcpy(beg_, data + first, length - first);
   }
 }
 
-void Ring_::write_end_(char* old_wbuf, std::size_t length)
+void Ring_::release_write_block_(char* old_wbuf, std::size_t length)
 {
   char* new_wbuf = normalize_(old_wbuf + length);           // get block end
   while (wptr_.load() != old_wbuf);                         // wait for writes
