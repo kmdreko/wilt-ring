@@ -173,7 +173,8 @@ char* Ring_::acquire_read_block_(std::size_t length)
   while (true)                                              // loop till success
   {
     char* old_rptr = rptr_.load();                          // read rptr
-    while (used_.load() < (std::ptrdiff_t)length);          // not enough data
+    while (used_.load() < (std::ptrdiff_t)length)           // not enough data
+      ;                                                     // spin until success
 
     char* new_rptr = normalize_(old_rptr + length);         // get block end
     used_.fetch_sub(length);                                // reserve
@@ -190,7 +191,7 @@ char* Ring_::try_acquire_read_block_(std::size_t length)
   {
     char* old_rptr = rptr_.load();                          // read rptr
     if (used_.load() < (std::ptrdiff_t)length)              // not enough data
-      return nullptr;
+      return nullptr;                                       // return failure
 
     char* new_rptr = normalize_(old_rptr + length);         // get block end
     used_.fetch_sub(length);                                // reserve
@@ -218,7 +219,9 @@ void Ring_::copy_read_block_(const char* block, char* data, std::size_t length)
 void Ring_::release_read_block_(char* old_rptr, std::size_t length)
 {
   char* new_rptr = normalize_(old_rptr + length);           // get block end
-  while (rbuf_.load() != old_rptr);                         // wait for reads
+  while (rbuf_.load() != old_rptr)                          // check for earlier reads
+    ;                                                       // spin until reads complete
+
   rbuf_.store(new_rptr);                                    // finish commit
   free_.fetch_add(length);                                  // add to free space
 }
@@ -228,7 +231,8 @@ char* Ring_::acquire_write_block_(std::size_t length)
   while (true)                                              // loop till success
   {
     char* old_wbuf = wbuf_.load();                          // read wbuf
-    while (free_.load() < (std::ptrdiff_t)length);          // not enough space
+    while (free_.load() < (std::ptrdiff_t)length)           // not enough space
+      ;                                                     // spin until success
 
     char* new_wbuf = normalize_(old_wbuf + length);         // get block end
     free_.fetch_sub(length);                                // reserve
@@ -245,7 +249,7 @@ char* Ring_::try_acquire_write_block_(std::size_t length)
   {
     char* old_wbuf = wbuf_.load();                          // read wbuf
     if (free_.load() < (std::ptrdiff_t)length)              // not enough space
-      return nullptr;
+      return nullptr;                                       // return failure
 
     char* new_wbuf = normalize_(old_wbuf + length);         // get block end
     free_.fetch_sub(length);                                // reserve
@@ -273,7 +277,9 @@ void Ring_::copy_write_block_(char* block, const char* data, std::size_t length)
 void Ring_::release_write_block_(char* old_wbuf, std::size_t length)
 {
   char* new_wbuf = normalize_(old_wbuf + length);           // get block end
-  while (wptr_.load() != old_wbuf);                         // wait for writes
+  while (wptr_.load() != old_wbuf)                          // wait for earlier writes
+    ;                                                       // spin until writes complete
+
   wptr_.store(new_wbuf);                                    // finish commit
   used_.fetch_add(length);                                  // add to used space
 }

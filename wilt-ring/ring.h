@@ -39,46 +39,46 @@
 namespace wilt
 {
   //////////////////////////////////////////////////////////////////////////////
-  // This structure aims to access elements in a ring buffer from multiple 
+  // This structure aims to access elements in a ring buffer from multiple
   // concurrent readers and writers in a lock-free manner.
   // 
-  // The class works by allocating the array and storing two pointers (for the 
+  // The class works by allocating the array and storing two pointers (for the
   // beginning and end of the allocated space). Two atomic pointers are used to
-  // track the beginning and end of the currently used storage space. To 
+  // track the beginning and end of the currently used storage space. To
   // facilitate concurrent reads and writes, theres a read buffer pointer before
   // the read pointer for data currently being read, and a corresponding write
   // buffer pointer beyond the write pointer for data currently being written.
   // These buffer pointers cannot overlap. Just using these pointers suffer from
-  // some minute inefficiencies and a few ABA problems. Therfore, atomic 
-  // integers are used to store the currently used and currently free sizes. 
+  // some minute inefficiencies and a few ABA problems. Therfore, atomic
+  // integers are used to store the currently used and currently free sizes.
   // 
   // It allows multiple readers and multiple writers by implementing a reserve-
   // commit system. A thread wanting to read will check the used size to see if
   // there's enough data. If there is, it subtracts from the used size to
   // 'reserve' the read. It then does a compare-exchange to 'commit' by
   // increasing the read pointer. If that fails, then it backs out ('un-
-  // reserves') by adding back to the used size and tries again. If it 
+  // reserves') by adding back to the used size and tries again. If it
   // succeeds, then it proceeds to read the data. In order to complete, the
   // reader must update the read buffer pointer to where it just finished
   // reading from. However, because other readers that started before may not be
-  // done yet, the reader must wait until the read buffer pointer points to 
+  // done yet, the reader must wait until the read buffer pointer points to
   // where the read started. Only, then is the read buffer pointer updated, and
   // the free size increased. So while this implementation is lock-free, it is
-  // not wait-free. This same principle works the same when writing (ammended 
+  // not wait-free. This same principle works the same when writing (ammended
   // for the appropriate pointers).
   // 
   // If two readers try to read at the same time and there is only enough data
   // for one of them. The used size MAY be negative because they both 'reserve'
   // the data. This is an over-reserved state. But the compare-exchange will
   // only allow one reader to 'commit' to the read and the other will 'un-
-  // reserve' the read. 
+  // reserve' the read.
   // 
   // |beg           |rptr      used=5             |wbuf         - unused
   // |----|----|++++|====|====|====|====|====|++++|----|        + modifying
   //  free=3   |rbuf                         |wptr     |end     = used
   // 
   // The diagram above shows a buffer of size 10 storing 5 bytes with a reader
-  // reading one byte and one writer reading one byte
+  // reading one byte and one writer reading one byte.
   // 
   // Out of the box, the class works by reading and writing raw bytes from POD
   // data types and arrays. A wrapper could allow for a nicer interface for
