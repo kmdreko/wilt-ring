@@ -211,23 +211,24 @@ namespace wilt
     // CONSTRUCTORS AND DESTRUCTORS
     ////////////////////////////////////////////////////////////////////////////
 
-    // Ring must be constructed with a size that does not change
-    Ring(std::size_t);
+    // Constructs a ring without a buffer (capacity() == 0)
+    Ring();
 
-    // Moving assumes nothing is reading or writing (should be the case anyway).
-    Ring(Ring<T>&&);
+    // Constructs a ring with a buffer with a size
+    Ring(std::size_t size);
 
-    // No default constructor, must be initialized with a size
-    Ring()                         = delete;
+    // Moves the buffer between rings, assumes no concurrent operations
+    Ring(Ring<T>&& ring);
+
+    // Moves the buffer between rings, assumes no concurrent operations on
+    // either ring. Deallocates the buffer
+    Ring<T>& operator= (Ring<T>&& ring);
 
     // No copying. In the current model, there is no safe way to read without
     // committing (would have to be a destructive read). Either that, or I'd
     // have to dictate that reads and writes are not allowed during copying
     Ring(const Ring_&)             = delete;
     Ring& operator= (const Ring_&) = delete;
-
-    // No move assignment. I'm lazy
-    Ring& operator= (Ring_&&)      = delete;
 
     // Deallocates the buffer, destructs stored data.
     ~Ring();
@@ -263,7 +264,19 @@ namespace wilt
     bool try_write(const T& data) noexcept; // non-blocking write
     bool try_write(T&& data) noexcept;      // non-blocking write
 
+  private:
+    ////////////////////////////////////////////////////////////////////////////
+    // PRIVATE HELPER FUNCTIONS
+    ////////////////////////////////////////////////////////////////////////////
+
+    void destruct_();
+
   }; // class Ring<T>
+
+  template <class T>
+  Ring<T>::Ring()
+    : Ring_()
+  { }
 
   template <class T>
   Ring<T>::Ring(std::size_t size)
@@ -276,7 +289,23 @@ namespace wilt
   { }
 
   template <class T>
+  Ring<T>& Ring<T>::operator= (Ring<T>&& ring)
+  {
+    destruct_();
+
+    Ring_::operator= (ring);
+
+    return *this;
+  }
+
+  template <class T>
   Ring<T>::~Ring()
+  {
+    destruct_();
+  }
+
+  template <class T>
+  void Ring<T>::destruct_()
   {
     if (size() == 0)
       return;

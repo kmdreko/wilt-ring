@@ -80,30 +80,27 @@ Ring_::Ring_(Ring_&& ring)
 
 Ring_& Ring_::operator= (Ring_&& ring)
 {
-  if (this != &ring)
-  {
-    delete[] beg_;
+  delete[] beg_;
 
-    beg_ = ring.beg_;
-    end_ = ring.end_;
+  beg_ = ring.beg_;
+  end_ = ring.end_;
 
-    used_.store(ring.used_.load());
-    free_.store(ring.free_.load());
-    rbuf_.store(ring.rbuf_.load());
-    rptr_.store(ring.rptr_.load());
-    wptr_.store(ring.wptr_.load());
-    wbuf_.store(ring.wbuf_.load());
+  used_.store(ring.used_.load());
+  free_.store(ring.free_.load());
+  rbuf_.store(ring.rbuf_.load());
+  rptr_.store(ring.rptr_.load());
+  wptr_.store(ring.wptr_.load());
+  wbuf_.store(ring.wbuf_.load());
 
-    ring.beg_ = nullptr;
-    ring.end_ = nullptr;
+  ring.beg_ = nullptr;
+  ring.end_ = nullptr;
 
-    ring.used_.store(0);
-    ring.free_.store(0);
-    ring.rbuf_.store(nullptr);
-    ring.rptr_.store(nullptr);
-    ring.wptr_.store(nullptr);
-    ring.wbuf_.store(nullptr);
-  }
+  ring.used_.store(0);
+  ring.free_.store(0);
+  ring.rbuf_.store(nullptr);
+  ring.rptr_.store(nullptr);
+  ring.wptr_.store(nullptr);
+  ring.wbuf_.store(nullptr);
 
   return *this;
 }
