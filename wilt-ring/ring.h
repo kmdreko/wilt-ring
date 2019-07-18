@@ -149,14 +149,14 @@ namespace wilt
     // Functions only report on the state of the ring
 
     // Returns the current amount of non-reserved used space (amount of written 
-    // data that a read hasn't yet reserved). May potentially return a negative 
-    // number if the system is over-reserved (can occur when two or more reads 
-    // try to reserve the remaining space). This, of course, doesn't report 
-    // writes that have not completed. 
-    std::ptrdiff_t size() const;
+    // data that a read hasn't yet reserved). Over-reserved scenarios mean this
+    // number is not the ultimate source of truth with concurrent operations,
+    // but its the closest safe approximation. This, of course, doesn't report
+    // writes that have not completed.
+    std::size_t size() const;
 
     // Maximum amount of data that can be held
-    std::ptrdiff_t capacity() const;
+    std::size_t capacity() const;
 
   public:
     ////////////////////////////////////////////////////////////////////////////
@@ -236,14 +236,14 @@ namespace wilt
     // Functions only report on the state of the ring
 
     // Returns the current amount of non-reserved used space (amount of written 
-    // data that a read hasn't yet reserved). May potentially return a negative 
-    // number if the system is over-reserved (can occur when two or more reads 
-    // try to reserve the remaining space). This, of course, doesn't report 
-    // writes that have not completed. 
-    std::ptrdiff_t size() const;
+    // data that a read hasn't yet reserved). Over-reserved scenarios mean this
+    // number is not the ultimate source of truth with concurrent operations,
+    // but its the closest safe approximation. This, of course, doesn't report
+    // writes that have not completed.
+    std::size_t size() const;
 
     // Maximum amount of data that can be held
-    std::ptrdiff_t capacity() const;
+    std::size_t capacity() const;
 
   public:
     ////////////////////////////////////////////////////////////////////////////
@@ -318,13 +318,13 @@ namespace wilt
   }
 
   template <class T>
-  std::ptrdiff_t Ring<T>::size() const
+  std::size_t Ring<T>::size() const
   {
     return Ring_::size() / sizeof(T);
   }
 
   template <class T>
-  std::ptrdiff_t Ring<T>::capacity() const
+  std::size_t Ring<T>::capacity() const
   {
     return Ring_::capacity() / sizeof(T);
   }

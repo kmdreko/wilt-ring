@@ -110,19 +110,23 @@ Ring_::~Ring_()
   delete[] beg_;
 }
 
-std::ptrdiff_t Ring_::size() const
+std::size_t Ring_::size() const
 {
-  return used_.load();
+  // The 'used' space can be negative in an over-reserved case, but it can be
+  // clamped to 0 for simplicity.
+
+  auto s = used_.load();
+  return s < 0 ? 0 : static_cast<std::size_t>(s);
 }
 
-std::ptrdiff_t Ring_::capacity() const
+std::size_t Ring_::capacity() const
 {
-  return end_ - beg_;
+  return static_cast<std::size_t>(end_ - beg_);
 }
 
 void Ring_::read(void* data, std::size_t length) noexcept
 {
-  char* block = acquire_read_block_(length);
+  auto block = acquire_read_block_(length);
 
   copy_read_block_(block, (char*)data, length);
   release_read_block_(block, length);
@@ -130,7 +134,7 @@ void Ring_::read(void* data, std::size_t length) noexcept
 
 void Ring_::write(const void* data, std::size_t length) noexcept
 {
-  char* block = acquire_write_block_(length);
+  auto block = acquire_write_block_(length);
 
   copy_write_block_(block, (const char*)data, length);
   release_write_block_(block, length);
@@ -138,7 +142,7 @@ void Ring_::write(const void* data, std::size_t length) noexcept
 
 bool Ring_::try_read(void* data, std::size_t length) noexcept
 {
-  char* block = try_acquire_read_block_(length);
+  auto block = try_acquire_read_block_(length);
   if (block == nullptr)
     return false;
 
@@ -150,7 +154,7 @@ bool Ring_::try_read(void* data, std::size_t length) noexcept
 
 bool Ring_::try_write(const void* data, std::size_t length) noexcept
 {
-  char* block = try_acquire_write_block_(length);
+  auto block = try_acquire_write_block_(length);
   if (block == nullptr)
     return false;
 
