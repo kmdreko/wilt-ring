@@ -40,6 +40,8 @@
 // - std::is_nothrow_move_constructible
 // - std::is_nothrow_move_assignable
 // - std::is_nothrow_destructible
+#include <utility>
+// - std::move
 
 namespace wilt
 {

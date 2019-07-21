@@ -36,20 +36,20 @@ Ring_::Ring_()
   : beg_(nullptr)
   , end_(nullptr)
 {
-  std::atomic_init(&used_, 0);
-  std::atomic_init(&free_, 0);
-  std::atomic_init(&rbuf_, nullptr);
-  std::atomic_init(&rptr_, nullptr);
-  std::atomic_init(&wptr_, nullptr);
-  std::atomic_init(&wbuf_, nullptr);
+  std::atomic_init(&used_, static_cast<std::ptrdiff_t>(0));
+  std::atomic_init(&free_, static_cast<std::ptrdiff_t>(0));
+  std::atomic_init(&rbuf_, static_cast<char*>(0));
+  std::atomic_init(&rptr_, static_cast<char*>(0));
+  std::atomic_init(&wptr_, static_cast<char*>(0));
+  std::atomic_init(&wbuf_, static_cast<char*>(0));
 }
 
 Ring_::Ring_(std::size_t size)
   : beg_(new char[size])
   , end_(beg_ + size)
 {
-  std::atomic_init(&used_, 0);
-  std::atomic_init(&free_, size);
+  std::atomic_init(&used_, static_cast<std::ptrdiff_t>(0));
+  std::atomic_init(&free_, static_cast<std::ptrdiff_t>(size));
   std::atomic_init(&rbuf_, beg_);
   std::atomic_init(&rptr_, beg_);
   std::atomic_init(&wptr_, beg_);
