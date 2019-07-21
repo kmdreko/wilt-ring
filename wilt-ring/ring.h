@@ -112,10 +112,18 @@ namespace wilt
 
     data_ptr  beg_;  // pointer to beginning of data block
     data_ptr  end_;  // pointer to end of data block
+
+    alignas(64)
     size_type used_; // size of unreserved used space
+
+    alignas(64)
     size_type free_; // size of unreserved free space
+
+    alignas(64)
     atom_ptr  rbuf_; // pointer to beginning of data being read
     atom_ptr  rptr_; // pointer to beginning of data
+
+    alignas(64)
     atom_ptr  wptr_; // pointer to end of data
     atom_ptr  wbuf_; // pointer to end of data being written
 
